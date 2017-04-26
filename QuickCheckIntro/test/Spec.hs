@@ -70,7 +70,15 @@ genTotalEnv = makeEnvWith (Set.fromList varNames)
 --------------------------------------------------------------------------------
 
 prop_optimize_constant :: Property
-prop_optimize_constant = forAll (sized genCstExpr) (isCst . optimize)
+prop_optimize_constant =
+  forAll (sized genCstExpr) (isCst . optimize)
+
+-- Bad idea: would fail with "*** Gave up! Passed only 41 tests."
+{-
+prop_optimize_constant :: Expr -> Property
+prop_optimize_constant e =
+  Set.null (dependencies e) ==> isCst (optimize e)
+-}
 
 prop_partial_constant :: Property
 prop_partial_constant = forAll (sized genCstExpr) (isCst . partial Map.empty)
@@ -80,27 +88,24 @@ prop_optimize_eval e =
   forAll genTotalEnv $ \env ->
     eval env e == eval env (optimize e)
 
-prop_dependencies_allow_eval :: Property
-prop_dependencies_allow_eval =
-  forAll (sized genExpr) $ \e ->
-    forAll (makeEnvWith (dependencies e)) $ \env ->
-      isCst (partial env e)
-      && cst (eval env e) == partial env e
+prop_dependencies_allow_eval :: Expr -> Property
+prop_dependencies_allow_eval e =
+  forAll (makeEnvWith (dependencies e)) $ \env ->
+    isCst (partial env e)
+    && cst (eval env e) == partial env e
 
 makePartialEnv :: Set.Set Id -> Gen Env
 makePartialEnv deps = do
   v <- elements (Set.toList deps)
   makeEnvWith (Set.delete v deps)
 
-prop_missing_dependencies_forbid_eval :: Property
-prop_missing_dependencies_forbid_eval =
-  forAll (sized genExpr) $ \e ->
-    let deps = dependencies e
-    in Set.size deps > 0 ==>
-        forAll (makePartialEnv deps) $ \env ->
-          not (isCst (partial env e))
+prop_missing_dependencies_forbid_eval :: Expr -> Property
+prop_missing_dependencies_forbid_eval e =
+  let deps = dependencies e
+  in Set.size deps > 0 ==>
+      forAll (makePartialEnv deps) $ \env ->
+        not (isCst (partial env e))
 
-prop_optimize_preserves_dependencies :: Property
-prop_optimize_preserves_dependencies =
-  forAll (sized genExpr) $ \e ->
+prop_optimize_preserves_dependencies :: Expr -> Bool
+prop_optimize_preserves_dependencies e =
     dependencies e == dependencies (optimize e)
