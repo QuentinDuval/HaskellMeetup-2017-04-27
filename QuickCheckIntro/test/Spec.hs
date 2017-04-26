@@ -20,6 +20,7 @@ main = do
   quickCheck prop_dependencies_allow_eval
   quickCheck (expectFailure prop_missing_dependencies_forbid_eval)
   quickCheck (expectFailure prop_optimize_preserves_dependencies)
+  quickCheck prop_optimize_subsets_dependencies
 
 
 --------------------------------------------------------------------------------
@@ -108,4 +109,10 @@ prop_missing_dependencies_forbid_eval e =
 
 prop_optimize_preserves_dependencies :: Expr -> Bool
 prop_optimize_preserves_dependencies e =
-    dependencies e == dependencies (optimize e)
+  dependencies e == dependencies (optimize e)
+
+prop_optimize_subsets_dependencies :: Expr -> Bool
+prop_optimize_subsets_dependencies e =
+  let fullDeps = dependencies e
+      optDeps = dependencies (optimize e)
+  in Set.null (optDeps `Set.difference` fullDeps)
